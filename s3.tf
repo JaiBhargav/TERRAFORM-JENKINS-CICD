@@ -1,38 +1,41 @@
 variable "bucketname" {
-  description = "Name of the S3 bucket"
+  description = "The name of the S3 bucket"
   type        = string
 }
 
 # Create S3 bucket
 resource "aws_s3_bucket" "mybucket" {
   bucket = var.bucketname
-
-  tags = {
-    Name        = var.bucketname
-    Environment = "Production"
-  }
 }
 
-# Ensure ownership is set correctly
-resource "aws_s3_bucket_ownership_controls" "ownership" {
+# Block public ACLs and allow only policy-based public access
+resource "aws_s3_bucket_public_access_block" "example" {
   bucket = aws_s3_bucket.mybucket.id
 
-  rule {
-    object_ownership = "BucketOwnerPreferred"
-  }
+  block_public_acls       = true     # Disallow setting public ACLs
+  ignore_public_acls      = true     # Ignore existing ACLs
+  block_public_policy     = false    # Allow policy-based access (needed for static site)
+  restrict_public_buckets = false    # Allow public access from outside
 }
 
-# Secure bucket public access settings
-resource "aws_s3_bucket_public_access_block" "public_access" {
+# Public read-only policy (only allows viewing objects, no writes or deletes)
+resource "aws_s3_bucket_policy" "public_read" {
   bucket = aws_s3_bucket.mybucket.id
 
-  block_public_acls       = true
-  ignore_public_acls      = true
-  block_public_policy     = false  # Required to allow static website hosting via policy
-  restrict_public_buckets = false # Must be false if policy allows public
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = "*"
+        Action = "s3:GetObject"
+        Resource = "${aws_s3_bucket.mybucket.arn}/*"
+      }
+    ]
+  })
 }
 
-# Host static website content
+# Website hosting configuration
 resource "aws_s3_bucket_website_configuration" "website" {
   bucket = aws_s3_bucket.mybucket.id
 
@@ -45,58 +48,34 @@ resource "aws_s3_bucket_website_configuration" "website" {
   }
 }
 
-# Upload website files with correct MIME types
+# Upload index.html
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.mybucket.id
   key          = "index.html"
   source       = "index.html"
   content_type = "text/html"
-  acl          = "private"
 }
 
+# Upload error.html
 resource "aws_s3_object" "error" {
   bucket       = aws_s3_bucket.mybucket.id
   key          = "error.html"
   source       = "error.html"
   content_type = "text/html"
-  acl          = "private"
 }
 
+# Upload style.css
 resource "aws_s3_object" "style" {
   bucket       = aws_s3_bucket.mybucket.id
   key          = "style.css"
   source       = "style.css"
   content_type = "text/css"
-  acl          = "private"
 }
 
+# Upload script.js
 resource "aws_s3_object" "script" {
   bucket       = aws_s3_bucket.mybucket.id
   key          = "script.js"
   source       = "script.js"
-  content_type = "application/javascript"
-  acl          = "private"
-}
-
-# Public read access policy (secured with optional condition)
-resource "aws_s3_bucket_policy" "allow_public_read" {
-  bucket = aws_s3_bucket.mybucket.id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "PublicReadGetObject",
-        Effect    = "Allow",
-        Principal = "*",
-        Action    = "s3:GetObject",
-        Resource  = "${aws_s3_bucket.mybucket.arn}/*",
-        Condition = {
-          StringLike = {
-            "aws:Referer" = "https://example.com/*"  # Optional: tighten public access
-          }
-        }
-      }
-    ]
-  })
+  content_type = "text/javascript"
 }
