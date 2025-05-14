@@ -2,12 +2,14 @@
 resource "aws_s3_bucket" "mybucket" {
   bucket = var.bucket_name
 }
+
 resource "aws_s3_bucket_ownership_controls" "example" {
   bucket = aws_s3_bucket.mybucket.id
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
 }
+
 resource "aws_s3_bucket_public_access_block" "example" {
   bucket = aws_s3_bucket.mybucket.id
   block_public_acls       = false
@@ -15,6 +17,7 @@ resource "aws_s3_bucket_public_access_block" "example" {
   ignore_public_acls      = false
   restrict_public_buckets = false
 }
+
 resource "aws_s3_bucket_acl" "example" {
   depends_on = [
     aws_s3_bucket_ownership_controls.example,
@@ -23,34 +26,40 @@ resource "aws_s3_bucket_acl" "example" {
   bucket = aws_s3_bucket.mybucket.id
   acl    = "public-read"
 }
+
 resource "aws_s3_object" "index" {
   bucket = aws_s3_bucket.mybucket.id
-  key = "index.html"
+  key    = "index.html"
   source = "index.html"
-  acl = "public-read"
+  acl    = "public-read"
   content_type = "text/html"
 }
+
 resource "aws_s3_object" "error" {
   bucket = aws_s3_bucket.mybucket.id
-  key = "error.html"
+  key    = "error.html"
   source = "error.html"
-  acl = "public-read"
+  acl    = "public-read"
   content_type = "text/html"
 }
+
 resource "aws_s3_object" "style" {
   bucket = aws_s3_bucket.mybucket.id
-  key = "style.css"
+  key    = "style.css"
   source = "style.css"
-  acl = "public-read"
+  acl    = "public-read"
   content_type = "text/css"
 }
+
 resource "aws_s3_object" "script" {
   bucket = aws_s3_bucket.mybucket.id
-  key = "script.js"
+  key    = "script.js"
   source = "script.js"
-  acl = "public-read"
+  acl    = "public-read"
   content_type = "text/javascript"
 }
+
+# Corrected depends_on usage for the website configuration
 resource "aws_s3_bucket_website_configuration" "website" {
   bucket = aws_s3_bucket.mybucket.id
   index_document {
@@ -59,5 +68,7 @@ resource "aws_s3_bucket_website_configuration" "website" {
   error_document {
     key = "error.html"
   }
-  depends_on = [ aws_s3_bucket_acl.example.id ]
+  depends_on = [
+    aws_s3_bucket_acl.example   # Reference the full resource here
+  ]
 }
